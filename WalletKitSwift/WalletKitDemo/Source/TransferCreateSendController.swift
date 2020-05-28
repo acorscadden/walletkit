@@ -103,52 +103,62 @@ UITextViewDelegate, UIPickerViewDelegate, UIPickerViewDataSource {
             message: "Are you sure?",
             preferredStyle: UIAlertController.Style.actionSheet)
 
+        alert.addAction(UIAlertAction (title: "Yes without submit", style: UIAlertAction.Style.destructive) { (action) in
+            self.createTransaction(value: value, withSubmit: false)
+        })
+        
         alert.addAction(UIAlertAction (title: "Yes", style: UIAlertAction.Style.destructive) { (action) in
-            guard let target = Address.create (string: self.recvField.text!, network: self.wallet.manager.network)
-                else { self.submitTransferFailed("invalid target address"); return }
-
-            let unit = self.wallet.unit
-            let amount = Amount.create (double: Double(value), unit: unit)
-            print ("APP: TVV: Submit \(self.isBitCurrency ? "BTC/BCH" : "ETH") Amount: \(amount)");
-
-            guard let transferFeeBasis = self.feeBasis
-                else { self.submitTransferFailed ("no fee basis"); return }
-
-            var attributes: Set<TransferAttribute> = Set()
-
-            if let destinationTagAttribute = self.wallet.transferAttributesFor (target: target)
-                .first (where: { "DestinationTag" == $0.key }) {
-                destinationTagAttribute.value = (self.recvField.text! == "rw2ciyaNshpHe7bCHo4bRWq6pqqynnWKQg"
-                    ? "739376465"
-                    : nil)
-                attributes.insert (destinationTagAttribute)
-            }
-
-            if let memoAttribute = self.wallet.transferAttributesFor(target: target)
-                .first (where: { "Memo" == $0.key }) {
-                memoAttribute.value = (self.recvField.text! == "0.0.16952" // Binance
-                    ? "1009554437"
-                    : nil)
-                attributes.insert(memoAttribute)
-            }
-
-            guard let transfer = self.wallet.createTransfer (target: target,
-                                                             amount: amount,
-                                                             estimatedFeeBasis: transferFeeBasis,
-                                                             attributes: attributes)
-                else { self.submitTransferFailed("balance too low?"); return }
-
-            // Will generate a WalletEvent.transferSubmitted (transfer, success)
-            self.wallet.manager.submit (transfer: transfer,
-                                        paperKey: UIApplication.paperKey);
-
-            // Notify, close
-            self.dismiss(animated: true) {}
+            self.createTransaction(value: value, withSubmit: true)
         })
         alert.addAction(UIAlertAction (title: "No", style: UIAlertAction.Style.cancel) { (action) in
             print ("APP: TCC: Will Cancel" )
         })
         self.present(alert, animated: true) {}
+    }
+    
+    private func createTransaction(value: Float, withSubmit: Bool) {
+        guard let target = Address.create (string: self.recvField.text!, network: self.wallet.manager.network)
+            else { self.submitTransferFailed("invalid target address"); return }
+
+        let unit = self.wallet.unit
+        let amount = Amount.create (double: Double(value), unit: unit)
+        print ("APP: TVV: Submit \(self.isBitCurrency ? "BTC/BCH" : "ETH") Amount: \(amount)");
+
+        guard let transferFeeBasis = self.feeBasis
+            else { self.submitTransferFailed ("no fee basis"); return }
+
+        var attributes: Set<TransferAttribute> = Set()
+
+        if let destinationTagAttribute = self.wallet.transferAttributesFor (target: target)
+            .first (where: { "DestinationTag" == $0.key }) {
+            destinationTagAttribute.value = (self.recvField.text! == "rw2ciyaNshpHe7bCHo4bRWq6pqqynnWKQg"
+                ? "739376465"
+                : nil)
+            attributes.insert (destinationTagAttribute)
+        }
+
+        if let memoAttribute = self.wallet.transferAttributesFor(target: target)
+            .first (where: { "Memo" == $0.key }) {
+            memoAttribute.value = (self.recvField.text! == "0.0.16952" // Binance
+                ? "1009554437"
+                : nil)
+            attributes.insert(memoAttribute)
+        }
+
+        guard let transfer = self.wallet.createTransfer (target: target,
+                                                         amount: amount,
+                                                         estimatedFeeBasis: transferFeeBasis,
+                                                         attributes: attributes)
+            else { self.submitTransferFailed("balance too low?"); return }
+        
+        if withSubmit {
+           // Will generate a WalletEvent.transferSubmitted (transfer, success)
+           self.wallet.manager.submit (transfer: transfer,
+                                       paperKey: UIApplication.paperKey);
+        }
+
+        // Notify, close
+        self.dismiss(animated: true) {}
     }
 
     @IBAction func cancel(_ sender: UIBarButtonItem) {
@@ -245,7 +255,8 @@ UITextViewDelegate, UIPickerViewDelegate, UIPickerViewDataSource {
     }
 
     func amount () -> Float {
-        return amountSlider!.value
+        return 0.0005
+        //return amountSlider!.value
     }
 
     // In WEI
